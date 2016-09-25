@@ -1,0 +1,10 @@
+import psycopg2
+import sys
+from riotwatcher import riotwatcher
+
+def main(*args, **kwargs):
+    pass
+
+
+if __name__=='__main__':
+    main(sys.argv[1:])
