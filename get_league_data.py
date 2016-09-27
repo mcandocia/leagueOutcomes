@@ -13,13 +13,9 @@ import json
 
 def main(*args, **kwargs):
     watcher = riotwatcher.RiotWatcher(API_KEY)
-    conn = psycopg2.connect(
-        database='leaguedb',
-        user='djmax',
-        password='pw',
-        host='localhost',
-        port=5432
-    )
+    db1 = Database()
+    conn = db1.conn
+    cur = db1.cur
     cur = conn.cursor()
     summoner_id = randint(1,1200000)
     cur.execute("""CREATE TABLE IF NOT EXISTS gameinfo(

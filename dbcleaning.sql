@@ -35,8 +35,9 @@ from
 --gold: 3
 --platinum: 4
 --diamond: 5
---challenger: 6
---master: 7
+--master: 6
+--challenger: 7
+
 
 --category will correspond to the rounded average of these
 
@@ -68,8 +69,8 @@ WHEN tier='"SILVER"' THEN 2
 WHEN tier='"GOLD"' THEN 3
 WHEN tier='"PLATINUM"' THEN 4
 WHEN tier='"DIAMOND"' THEN 5
-WHEN tier='"CHALLENGER"' THEN 6
-WHEN tier='"MASTER"' THEN 7
+WHEN tier='"MASTER"' THEN 6
+WHEN tier='"CHALLENGER"' THEN 7
 ELSE -1
 END;
 

@@ -11,25 +11,16 @@ import time
 from datetime import datetime
 from collections import deque
 import json
+from dbinfo import Database
 
 def main(*args, **kwargs):
     watcher = riotwatcher.RiotWatcher(API_KEY)
-    conn = psycopg2.connect(
-        database='leaguedb',
-        user='djmax',
-        password='pw',
-        host='localhost',
-        port=5432
-    )
-    cur = conn.cursor()
-    fetcher_conn = psycopg2.connect(
-        database='leaguedb',
-        user='djmax',
-        password='pw',
-        host='localhost',
-        port=5432
-    )
-    fetcher_cur = fetcher_conn.cursor()
+    db1 = Database()
+    conn = db1.conn
+    cur = db1.cur
+    db2 = Database()
+    fetcher_conn = db2.conn
+    fetcher_cur = db2.cur
     #created new table because bug in bans extraction (duplicated 0 index)
     cur.execute("""CREATE TABLE IF NOT EXISTS matchinfo(
     queueType VARCHAR(40),
@@ -68,7 +59,7 @@ def main(*args, **kwargs):
         if game_id in game_id_set:
             continue
         try:
-            time.sleep(24.8)
+            time.sleep(1.8)
             match = watcher.get_match(game_id)
             input_dict = {}
             for key in ['queueType','matchVersion','season','region','mapId',
