@@ -1,6 +1,7 @@
 import keras
 from keras.models import Sequential
 from keras.layers import Dense, Activation, Dropout
+from keras.regularizers import l2
 import numpy as np
 import psycopg2
 import sys
@@ -9,6 +10,8 @@ from dbinfo import Database
 
 NUMBER_CHAMPIONS = 132
 BATCH_SIZE = 200
+#try some smoothing of probabilities
+TEAM_FLIP_CHANCE = 0.125
 
 class DataFetcher(object):
     def __init__(self, mode='train', averageRanking=2):
@@ -59,7 +62,11 @@ class DataFetcher(object):
                     codes1[i, tier] +=1
                 else:
                     codes2[i, tier] +=1
-        x = np.concatenate((champ1,champ2,codes1,codes2), axis=1)
+        if np.random.random() < TEAM_FLIP_CHANCE:
+            x = np.concatenate((champ2,champ1,codes2,codes1), axis=1)
+            y = np.asarray([1 - v for v in y])
+        else:
+            x = np.concatenate((champ1,champ2,codes1,codes2), axis=1)
         return (x, y)
             
 
@@ -75,16 +82,16 @@ class DataFetcher(object):
 def model1():
     """deep model"""
     model = Sequential()
-    model.add(Dense(output_dim=132, input_dim=280))
+    model.add(Dense(output_dim=132, input_dim=280, W_regularizer = l2(0.000006)))
     model.add(Dropout(0.5))
     model.add(Activation('relu'))
-    model.add(Dense(output_dim=40))
-    model.add(Dropout(0.25))
+    model.add(Dense(output_dim=40, W_regularizer = l2(0.000006)))
+    model.add(Dropout(0.5))
     model.add(Activation('softmax'))
-    model.add(Dense(output_dim=24))
-    model.add(Dropout(0.25))
+    model.add(Dense(output_dim=24, W_regularizer = l2(0.000006)))
+    model.add(Dropout(0.5))
     model.add(Activation('softmax'))
-    model.add(Dense(output_dim=12))
+    model.add(Dense(output_dim=12, W_regularizer = l2(0.000006)))
     model.add(Dense( 1, activation="sigmoid"))
     optimizer = keras.optimizers.Nadam()
     model.compile(loss='binary_crossentropy', 
@@ -94,7 +101,7 @@ def model1():
 def model2():
     """linear model"""
     model = Sequential()
-    model.add(Dense(output_dim=132, input_dim=280))
+    model.add(Dense(output_dim=132, input_dim=280, W_regularizer = l2(0.000006)))
     model.add(Dense( 1, activation="sigmoid"))
     optimizer = keras.optimizers.Nadam()
     model.compile(loss='binary_crossentropy', 
@@ -104,8 +111,8 @@ def model2():
 def model3():
     """1-hidden layer model"""
     model = Sequential()
-    model.add(Dense(output_dim=132, input_dim=280))
-    model.add(Dense(8, activation='softmax'))
+    model.add(Dense(output_dim=132, input_dim=280, W_regularizer = l2(0.000006)))
+    model.add(Dense(16, activation='softmax', W_regularizer = l2(0.000006)))
     model.add(Dense( 1, activation="sigmoid"))
     optimizer = keras.optimizers.Nadam()
     model.compile(loss='binary_crossentropy', 
@@ -115,17 +122,19 @@ def model3():
 def model4():
     """deeper model"""
     model = Sequential()
-    model.add(Dense(output_dim=132, input_dim=280))
+    model.add(Dense(output_dim=132, input_dim=280, W_regularizer = l2(0.000006)))
     model.add(Dropout(0.5))
     model.add(Activation('relu'))
-    model.add(Dense(output_dim=40))
-    model.add(Dropout(0.25))
+    model.add(Dense(output_dim=40, W_regularizer = l2(0.000006)))
+    model.add(Dropout(0.5))
     model.add(Activation('softmax'))
-    model.add(Dense(output_dim=24))
+    model.add(Dense(output_dim=24, W_regularizer = l2(0.000006)))
+    model.add(Dropout(0.5))
     model.add(Activation('softmax'))
-    model.add(Dense(output_dim=12))
+    model.add(Dense(output_dim=12, W_regularizer = l2(0.000006)))
+    model.add(Dropout(0.1))
     model.add(Activation('softmax'))
-    model.add(Dense(output_dim=5))
+    model.add(Dense(output_dim=5, W_regularizer = l2(0.000006)))
     model.add(Dense( 1, activation="sigmoid"))
     optimizer = keras.optimizers.Nadam(lr=0.003)
     model.compile(loss='binary_crossentropy', 
@@ -135,14 +144,14 @@ def model4():
 def model5():
     """narrow deep model"""
     model = Sequential()
-    model.add(Dense(output_dim=30, input_dim=280))
+    model.add(Dense(output_dim=30, input_dim=280, W_regularizer = l2(0.000006)))
     model.add(Dropout(0.5))
     model.add(Activation('relu'))
-    model.add(Dense(output_dim=20))
+    model.add(Dense(output_dim=20, W_regularizer = l2(0.000006)))
     model.add(Activation('softmax'))
-    model.add(Dense(output_dim=10))
+    model.add(Dense(output_dim=10, W_regularizer = l2(0.000006)))
     model.add(Activation('softmax'))
-    model.add(Dense(output_dim=8))
+    model.add(Dense(output_dim=8, W_regularizer = l2(0.000006)))
     model.add(Dense( 1, activation="sigmoid"))
     optimizer = keras.optimizers.Nadam()
     model.compile(loss='binary_crossentropy', 
@@ -152,20 +161,20 @@ def model5():
 def model6():
     """very narrow & deep model"""
     model = Sequential()
-    model.add(Dense(output_dim=30, input_dim=280))
+    model.add(Dense(output_dim=30, input_dim=280, W_regularizer = l2(0.000006)))
     model.add(Dropout(0.5))
     model.add(Activation('relu'))
-    model.add(Dense(output_dim=20))
+    model.add(Dense(output_dim=20, W_regularizer = l2(0.000006)))
     model.add(Activation('softmax'))
-    model.add(Dense(output_dim=10))
+    model.add(Dense(output_dim=10, W_regularizer = l2(0.000006)))
     model.add(Activation('softmax'))
-    model.add(Dense(output_dim=8))
+    model.add(Dense(output_dim=8, W_regularizer = l2(0.000006)))
     model.add(Activation('softmax'))
-    model.add(Dense(output_dim=6))
+    model.add(Dense(output_dim=6, W_regularizer = l2(0.000006)))
     model.add(Activation('softmax'))
-    model.add(Dense(output_dim=6))
+    model.add(Dense(output_dim=6, W_regularizer = l2(0.000006)))
     model.add(Activation('softmax'))
-    model.add(Dense(output_dim=4))
+    model.add(Dense(output_dim=4, W_regularizer = l2(0.000006)))
     model.add(Dense( 1, activation="sigmoid"))
     optimizer = keras.optimizers.Nadam()
     model.compile(loss='binary_crossentropy', 
@@ -175,18 +184,19 @@ def model6():
 def model7():
     """very deep model"""
     model = Sequential()
-    model.add(Dense(output_dim=120, input_dim=280))
+    model.add(Dense(output_dim=120, input_dim=280, W_regularizer = l2(0.000006)))
     model.add(Dropout(0.5))
     model.add(Activation('relu'))
-    model.add(Dense(output_dim=72))
+    model.add(Dense(output_dim=72, W_regularizer = l2(0.000006)))
+    model.add(Dropout(0.5))
     model.add(Activation('relu'))
-    model.add(Dense(output_dim=60))
+    model.add(Dense(output_dim=60, W_regularizer = l2(0.000006)))
     model.add(Activation('softmax'))
-    model.add(Dense(output_dim=40))
+    model.add(Dense(output_dim=40, W_regularizer = l2(0.000006)))
     model.add(Activation('softmax'))
-    model.add(Dense(output_dim=32))
+    model.add(Dense(output_dim=32, W_regularizer = l2(0.000006)))
     model.add(Activation('softmax'))
-    model.add(Dense(output_dim=24))
+    model.add(Dense(output_dim=24, W_regularizer = l2(0.000006)))
     model.add(Dense( 1, activation="sigmoid"))
     optimizer = keras.optimizers.Nadam()
     model.compile(loss='binary_crossentropy', 
@@ -196,13 +206,13 @@ def model7():
     
 def main(*args, **kwargs):
     averageRanking = 1
-    fetcher = DataFetcher(mode=None, averageRanking=averageRanking)
+    fetcher = DataFetcher(mode='train', averageRanking=averageRanking)
     test_fetcher = DataFetcher(mode='test', averageRanking=averageRanking)
     valid_fetcher = DataFetcher(mode='valid', averageRanking=averageRanking)
     os.chdir('/home/max/workspace/league')
     models = [model1(), model2(), model3(), model4(), model5(), model6(),
               model7()]
-    models = [models[0]]#temporary testing
+    #models = [models[0]]#temporary testing
     best_accuracy = [0. for _ in models]
     for iter in range(9000):
         #print "EPOCH: %d" % iter
@@ -256,6 +266,9 @@ def hilite(string, status, bold = True):
     if bold:
         attr.append('1')
     return '\x1b[%sm%s\x1b[0m' % (';'.join(attr), string)
+
+def rev5(obj):
+    return obj[5:10] + obj[0:5]
 
 if __name__=='__main__':
     main(sys.argv[1:])
