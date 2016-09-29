@@ -12,6 +12,7 @@ from datetime import datetime
 from collections import deque
 import json
 from dbinfo import Database
+from train_model import hilite
 
 def main(*args, **kwargs):
     watcher = riotwatcher.RiotWatcher(API_KEY)
@@ -59,7 +60,7 @@ def main(*args, **kwargs):
         if game_id in game_id_set:
             continue
         try:
-            time.sleep(1.8)
+            time.sleep(1.5)
             match = watcher.get_match(game_id)
             input_dict = {}
             for key in ['queueType','matchVersion','season','region','mapId',
@@ -89,7 +90,7 @@ def main(*args, **kwargs):
                 .format(cols=cols2, vals_str = vals_str)
             cur.execute(statement, values)
             conn.commit()
-            print 'added game id: %d' % game_id
+            print hilite('added game id: %d' % game_id, 0)
             game_id_set.add(game_id)
         except psycopg2.IntegrityError:
             print 'error...'
@@ -102,10 +103,10 @@ def main(*args, **kwargs):
             print sys.exc_info()
             print e.headers
             print e.error
-            print 'game id~~~%d' % game_id
+            print hilite('game id~~~%d' % game_id, 1)
             if e.error == "Game data not found":
                 continue
-            time.sleep(60)
+            time.sleep(0.5)
     conn.close()
     fetcher_conn.close()
      
