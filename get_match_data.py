@@ -12,9 +12,25 @@ from datetime import datetime
 from collections import deque
 import json
 from dbinfo import Database
-from train_model import hilite
+import requests
+
+def hilite(string, status, bold = True):
+    attr = []
+    if status==0:
+        # green
+        attr.append('42')
+    elif status==1:
+        # red
+        attr.append('41')
+    elif status==2:
+        #yellow
+        attr.append('43')
+    if bold:
+        attr.append('1')
+    return '\x1b[%sm%s\x1b[0m' % (';'.join(attr), string)
 
 def main(*args, **kwargs):
+    print 'initializing...'
     watcher = riotwatcher.RiotWatcher(API_KEY)
     db1 = Database()
     conn = db1.conn
@@ -46,16 +62,29 @@ def main(*args, **kwargs):
     PRIMARY KEY (game_id)
     );""")
     conn.commit()
+    cur.execute("""CREATE INDEX IF NOT EXISTS match_gameid 
+    ON matchinfo (game_id);""")
+    conn.commit()
+    cur.execute("""CREATE INDEX IF NOT EXISTS game_gameid 
+    ON gameinfo (game_id);""")
+    conn.commit()
+    cur.execute("""CREATE INDEX IF NOT EXISTS game_subtype 
+    ON gameinfo (subtype);""")
+    conn.commit()
+    print 'indexes complete'
     fetcher_cur.execute("""
-    SELECT game_id FROM gameinfo WHERE game_id NOT IN 
-    (SELECT game_id FROM matchinfo) AND
+    SELECT game_id FROM gameinfo as gi WHERE (NOT EXISTS
+    (SELECT mi.game_id FROM matchinfo as mi WHERE 
+    gi.game_id = mi.game_id)) AND
     subtype = ANY('{RANKED_TEAM_5x5,
     RANKED_SOLO_5x5,RANKED_TEAM_3x3}'::text[])
     ;--ORDER BY timestamp;"""
     )
+    print 'id fetcher set'
     game_id_set = set()
     while True:
         timestamp = datetime.now()
+        #game_id = randint(1,2.3e10)
         game_id = fetcher_cur.fetchone()[0]
         if game_id in game_id_set:
             continue
@@ -107,6 +136,9 @@ def main(*args, **kwargs):
             if e.error == "Game data not found":
                 continue
             time.sleep(0.5)
+        except requests.exceptions.ConnectionError:
+            print 'connection issue, sleeping for 15 seconds...'
+            time.sleep(15)
     conn.close()
     fetcher_conn.close()
      
