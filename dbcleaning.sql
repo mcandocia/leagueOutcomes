@@ -1,9 +1,11 @@
+/*
+
 select rank, count(*) from 
 (select (data->'highestAchievedSeasonTier')::varchar as rank from 
 	(select 
 	json_array_elements(participants_data::json) as data from matchinfo) t1
 	) t2 group by rank;
-
+*/
 
 
 --USED in PSQL
@@ -11,13 +13,13 @@ select rank, count(*) from
 --JSON expansion function takes a little while to run, but it's reasonable
 
 --Fix due to forgetfulness
-
+/*
 UPDATE matchinfo
 SET
 Ban2 = (teams_data->1->'bans'->0->'championId')::VARCHAR::INTEGER,
 Ban4 = (teams_data->1->'bans'->1->'championId')::VARCHAR::INTEGER,
 Ban6 = (teams_data->1->'bans'->2->'championId')::VARCHAR::INTEGER;
-
+*/
 DROP TABLE IF EXISTS championIds;
 
 select championId::integer, count(*), row_number() OVER 
@@ -27,7 +29,7 @@ from
 (select (data->'championId')::varchar as championId from 
 	(select json_array_elements(participants_data::json) 
 	as data from matchinfo) t1) t2 group by championId order by championId;
-
+CREATE INDEX champ_id_index ON championIds(championId);
 --extrapolate competition rank from games
 --unranked/NA: 0
 --bronze: 1
@@ -53,14 +55,16 @@ SELECT game_id,
 		(data->'championId')::VARCHAR::INTEGER AS championId,
 		(data#>'{timeline,lane}')::VARCHAR as lane,
 		(data->'participantId')::VARCHAR::INTEGER as participantId,
-	(data->'highestAchievedSeasonTier')::varchar AS tier 
+    -1 as fixed_championId,
+	(data->'highestAchievedSeasonTier')::varchar AS tier,
+    -1 as tier_code 
 	INTO match_userdata
 	FROM  
 	(SELECT game_id, json_array_elements(participants_data::json)
 		as data from matchinfo) t1;
-
+CREATE INDEX game_id_index ON match_userdata(game_id);
 --update table to have coded ranking value
-ALTER TABLE match_userdata ADD tier_code INTEGER;
+--ALTER TABLE match_userdata ADD tier_code INTEGER;
 
 UPDATE match_userdata SET tier_code=
 CASE WHEN tier='"UNRANKED"' THEN 0
@@ -76,8 +80,7 @@ END;
 
 
 --update table to have fixed Champion ID
-
-ALTER TABLE match_userdata ADD fixed_championId INTEGER;
+--ALTER TABLE match_userdata ADD fixed_championId INTEGER;
 
 UPDATE match_userdata 
 SET fixed_championId = championIds.row_number
@@ -91,6 +94,7 @@ DROP TABLE IF EXISTS match_rankings;
 SELECT game_id, round(avg(tier_code)) as averageRanking
 INTO match_rankings
 FROM match_userdata group by game_id;
+CREATE INDEX ranking_game_id_index ON match_rankings(game_id);
 
 
 --create new table with the following format:
@@ -108,7 +112,9 @@ mr.averageRanking as averageRanking,
 mu.tierCodes as tierCodes,
 gi.game_timestamp AS timestamp,
 gi.subtype AS match_type,
--1 AS learning_role
+-1 AS learning_role,
+-1 as match_version_code,
+'none'::TEXT as match_version
 INTO 
 match_summary
 FROM 
@@ -124,6 +130,7 @@ matchinfo as mi
 	GROUP BY game_id) mu ON mu.game_id = mi.game_id
 	INNER JOIN gameinfo AS gi on gi.game_id = mi.game_id
 ORDER BY game_id;
+CREATE INDEX summary_game_id ON match_summary(game_id);
 
 --fix the Ban ids
 UPDATE match_summary
@@ -165,6 +172,22 @@ WHERE Ban6=championIds.championId;
 UPDATE match_summary
 SET 
 learning_role = round(random()*12);
+
+--update match version data for table
+--match_summary has timestamp, match_version, match_version_code
+--match_versions has version, class_id, start_date
+
+--technically inefficient, possibly O(n_patches^2), but )
+UPDATE match_summary SET match_version_code=code FROM 
+  (SELECT max(code) as code, game_id FROM 
+    (SELECT game_id, class_id as code FROM match_summary left outer join 
+      match_versions ON
+      match_summary.timestamp >= match_versions.start_date) t1
+  GROUP BY game_id) t2 WHERE t2.game_id = match_summary.game_id;
+
+UPDATE match_summary SET match_version=match_versions.version 
+FROM match_versions 
+WHERE match_version_code = match_versions.class_id;
 
 
 --diagnostic queries...

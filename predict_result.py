@@ -2,8 +2,11 @@ import keras
 from dbinfo import Database
 import numpy as np
 from copy import deepcopy
+import time
+import sys
 
-NUMBER_CHAMPIONS = 132
+NUMBER_CHAMPIONS = 133
+MAX_PATCH_VALUE = 43
 #for testing
 DEFAULT_CHAMPIONS = ['Annie','Tryndamere','Twitch','Sona','Akali',
                      'Twisted Fate','Miss Fortune','Gangplank','Leona','Trundle']
@@ -17,20 +20,44 @@ popular_champs = ['Vayne','Thresh','Lee Sin','Brand','Rengar',
 classic_champs = ['Amumu','Annie','Corki','Tryndamere','Singed',
                   'Ashe','Cho\'Gath', 'Karthus', 'Udyr', 'Soraka']
 
+lower_rankings = ['UNRANKED','BRONZE','SILVER','GOLD']
+upper_rankings = ['PLATINUM','DIAMOND','MASTER','CHALLENGER']
+
 #flips team champs around
 def rev5(obj):
     return obj[5:10] + obj[0:5]
 
-RANKING_DICT = {'UNRANKED':[5,0,0,0,0,0,0,0],
-                'BRONZE':  [0,5,0,0,0,0,0,0],
-                'SILVER':  [0,0,5,0,0,0,0,0],
-                'GOLD':    [0,0,0,5,0,0,0,0],
-                'PLATINUM':[0,0,0,0,5,0,0,0],
-                'DIAMOND': [0,0,0,0,0,5,0,0],
-                'MASTER':[0,0,0,0,0,0,5,0],
-                'CHALLENGER':[0,0,0,0,0,0,0,5]}
-def main():
-    pass
+RANKING_DICT = {'UNRANKED':[4,1,0,0,0,0,0,0],
+                'BRONZE':  [1,3,1,0,0,0,0,0],
+                'SILVER':  [0,1,3,1,0,0,0,0],
+                'GOLD':    [0,0,1,3,1,0,0,0],
+                'PLATINUM':[0,0,0,1,3,1,0,0],
+                'DIAMOND': [0,0,0,0,1,3,1,0],
+                'MASTER':[0,0,0,0,0,1,3,1],
+                'CHALLENGER':[0,0,0,0,0,0,1,4]}
+def main(model_number = 0):
+    model_number = int(model_number)
+    print 'testing champs'
+    for rank in lower_rankings:
+        time.sleep(1.5)
+        print 'RANK: %s' % rank
+        print DEFAULT_CHAMPIONS
+        casual_predict(DEFAULT_CHAMPIONS, rank, model_number)
+        print rev5(DEFAULT_CHAMPIONS)
+        casual_predict(rev5(DEFAULT_CHAMPIONS), rank, model_number)
+        print bad_champs
+        casual_predict(bad_champs, rank, model_number)
+        print rev5(bad_champs)
+        casual_predict(rev5(bad_champs), rank, model_number)
+        print classic_champs
+        casual_predict(classic_champs, rank, model_number)
+        print rev5(classic_champs)
+        casual_predict(rev5(classic_champs), rank, model_number)
+        print popular_champs
+        casual_predict(popular_champs, rank, model_number)
+        print rev5(popular_champs)
+        casual_predict(rev5(popular_champs), rank, model_number)
+    print 'done predicting via main()'
 
 def process_data(data, use_names=False):
     """INPUT:
@@ -49,6 +76,7 @@ def process_data(data, use_names=False):
     champ2 = np.zeros((nrows, NUMBER_CHAMPIONS))
     codes1 = np.zeros((nrows, 8))
     codes2 = np.zeros((nrows, 8))
+    patch_matrix = np.zeroes((nrows, MAX_PATCH_VALUE + 1))
     if not isinstance(data, list):
         data = [data]
     if use_names:
@@ -65,6 +93,11 @@ def process_data(data, use_names=False):
                 #print '%s: %d' % (champ_name, champion_ids[j])
 
     for i, row in enumerate(data):
+        #create patch data
+        if 'patch_id' in row:
+            patch_matrix[i, row['patch_id']] = 1
+        else:
+            patch_matrix[MAX_PATCH_VALUE] = 1
         for j, champ_id in enumerate(row['champions']):
             if j < 6:
                 champ1[i, champ_id-1] = 1
@@ -75,16 +108,17 @@ def process_data(data, use_names=False):
                 codes1[i, j] += value
             else:
                 codes2[i, j-8] += value
-    x = np.concatenate((champ1,champ2,codes1,codes2), axis=1)
+    x = np.concatenate((champ1,champ2,codes1,codes2, patch_matrix), axis=1)
     return x
 
-def casual_predict(champions=DEFAULT_CHAMPIONS, ranking='SILVER'):
+def casual_predict(champions=DEFAULT_CHAMPIONS, ranking='SILVER', model_number=0):
     """avoids need for extra configuration"""
     if len(ranking) == 2:
             return predict({'champions':champions, 
                             'rankings':RANKING_DICT[ranking[0]] + 
                             RANKING_DICT[ranking[1]]})
-    return predict({'champions':champions, 'rankings':RANKING_DICT[ranking] * 2})
+    return predict({'champions':champions, 'rankings':RANKING_DICT[ranking] * 2},
+                   model_name = 'model%d' % model_number)
 
 def predict(data, model_name = 'model0', root_url = '/home/max/workspace/league/'):
     if isinstance(data, list):
@@ -103,3 +137,6 @@ def predict(data, model_name = 'model0', root_url = '/home/max/workspace/league/
                                       verbose=0)
     print predictions
     return predictions
+
+if __name__=='__main__':
+    main(sys.argv[1])
