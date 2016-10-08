@@ -76,7 +76,7 @@ def process_data(data, use_names=False):
     champ2 = np.zeros((nrows, NUMBER_CHAMPIONS))
     codes1 = np.zeros((nrows, 8))
     codes2 = np.zeros((nrows, 8))
-    patch_matrix = np.zeroes((nrows, MAX_PATCH_VALUE + 1))
+    patch_matrix = np.zeros((nrows, MAX_PATCH_VALUE + 1))
     if not isinstance(data, list):
         data = [data]
     if use_names:
@@ -97,7 +97,7 @@ def process_data(data, use_names=False):
         if 'patch_id' in row:
             patch_matrix[i, row['patch_id']] = 1
         else:
-            patch_matrix[MAX_PATCH_VALUE] = 1
+            patch_matrix[i, MAX_PATCH_VALUE] = 1
         for j, champ_id in enumerate(row['champions']):
             if j < 6:
                 champ1[i, champ_id-1] = 1

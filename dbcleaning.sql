@@ -79,6 +79,8 @@ ELSE -1
 END;
 
 
+UPDATE static_champions set fixed_id=ci.row_number FROM championIds AS ci WHERE ci.championId = static_champions.id;
+
 --update table to have fixed Champion ID
 --ALTER TABLE match_userdata ADD fixed_championId INTEGER;
 
